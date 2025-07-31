@@ -2,7 +2,7 @@
   "name": "rental-return-app",
   "version": "1.0.0",
   "description": "A simple web app to calculate rental returns and save to Supabase.",
-  "main": "rental-return-app.html",
+  "main": "index.html",
   "scripts": {
     "build": "node build.js"
   },
