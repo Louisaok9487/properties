@@ -8,8 +8,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Inter Font from Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Chart.js CDN for visualizations -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -58,6 +56,28 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        /* Style for sortable table headers */
+        .sortable-header {
+            cursor: pointer;
+            position: relative;
+        }
+        .sortable-header::after {
+            content: '';
+            position: absolute;
+            right: 8px; /* Adjust as needed */
+            top: 50%;
+            transform: translateY(-50%);
+            border: 4px solid transparent;
+            opacity: 0.4;
+        }
+        .sortable-header.asc::after {
+            border-bottom-color: #333;
+            opacity: 1;
+        }
+        .sortable-header.desc::after {
+            border-top-color: #333;
+            opacity: 1;
+        }
     </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-4">
@@ -68,7 +88,6 @@
         <div class="flex flex-wrap justify-center mb-6 border-b border-gray-200">
             <button class="tab-button active px-6 py-3 text-lg font-medium rounded-t-lg focus:outline-none transition duration-150 ease-in-out" data-tab="calculator">Calculator</button>
             <button class="tab-button px-6 py-3 text-lg font-medium rounded-t-lg focus:outline-none transition duration-150 ease-in-out" data-tab="saved-properties">Saved Properties</button>
-            <button class="tab-button px-6 py-3 text-lg font-medium rounded-t-lg focus:outline-none transition duration-150 ease-in-out" data-tab="dashboard">Dashboard</button>
         </div>
 
         <!-- Calculator Tab Content -->
@@ -169,12 +188,12 @@
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Property Name</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Record Date</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Monthly Income ($)</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Value ($)</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Expenses ($)</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ROI (%)</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort-by="property_name">Property Name</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort-by="record_date">Record Date</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort-by="rental_income">Monthly Income ($)</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort-by="house_value">Value ($)</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort-by="total_expenses">Total Expenses ($)</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort-by="roi">ROI (%)</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
@@ -185,31 +204,6 @@
                         </tr>
                     </tbody>
                 </table>
-            </div>
-        </div>
-
-        <!-- Dashboard Tab Content -->
-        <div id="dashboard-tab" class="tab-content">
-            <h2 class="text-2xl font-bold text-gray-800 mb-4 text-center">Property Comparison Dashboard</h2>
-            <div class="bg-gray-50 p-6 rounded-lg shadow-md border border-gray-200">
-                <p class="text-sm text-gray-600 mb-4">Select up to 5 properties from your saved list to compare their ROIs.</p>
-                <div id="dashboardCheckboxes" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 mb-4">
-                    <!-- Checkboxes will be populated here -->
-                    <p class="text-gray-500 col-span-full text-center">Load properties to see comparison options.</p>
-                </div>
-                <button id="compareBtn"
-                        class="w-full px-6 py-3 bg-indigo-600 text-white font-semibold rounded-md shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition duration-150 ease-in-out">
-                    <span id="compareBtnText">Compare Selected Properties</span>
-                    <span id="compareBtnSpinner" class="spinner hidden"></span>
-                </button>
-
-                <div id="comparisonResults" class="mt-6 p-4 bg-white rounded-md border border-gray-200">
-                    <h3 class="text-lg font-semibold text-gray-800 mb-3">ROI Comparison Chart</h3>
-                    <div class="relative h-64 md:h-80"> <!-- Responsive height for chart -->
-                        <canvas id="roiBarChart"></canvas>
-                    </div>
-                    <p id="noChartDataMessage" class="text-gray-500 mt-4 text-center">Select properties and click "Compare" to see the chart.</p>
-                </div>
             </div>
         </div>
 
@@ -239,17 +233,19 @@
         const SUPABASE_ANON_KEY = '__SUPABASE_ANON_KEY_PLACEHOLDER__'; // This will be replaced by Netlify build
 
         let supabase = null; // Initialize supabase client as null
-        let allProperties = []; // Store all loaded properties for dashboard use
-        let selectedPropertyIds = new Set(); // To track selected properties for comparison
-        let roiChart = null; // To hold the Chart.js instance
+        let allProperties = []; // Store all loaded properties for sorting
         let editingPropertyId = null; // To track which property is being edited
+
+        // Sorting state
+        let currentSortColumn = 'record_date'; // Default sort column
+        let currentSortDirection = 'desc'; // Default sort direction
 
         // --- DOM Elements ---
         const tabButtons = document.querySelectorAll('.tab-button');
         const tabContents = document.querySelectorAll('.tab-content');
 
         const propertyNameInput = document.getElementById('propertyName');
-        const recordDateInput = document.getElementById('recordDate'); // New timestamp input
+        const recordDateInput = document.getElementById('recordDate');
         const rentalIncomeInput = document.getElementById('rentalIncome');
         const houseValueInput = document.getElementById('houseValue');
         const managementFeeInput = document.getElementById('managementFee');
@@ -261,28 +257,21 @@
         const roiDisplay = document.getElementById('roiDisplay');
         const totalExpensesDisplay = document.getElementById('totalExpensesDisplay');
         const calculateBtn = document.getElementById('calculateBtn');
-        const saveUpdateBtn = document.getElementById('saveUpdateBtn'); // Renamed from saveBtn
-        const cancelEditBtn = document.getElementById('cancelEditBtn'); // New cancel edit button
+        const saveUpdateBtn = document.getElementById('saveUpdateBtn');
+        const cancelEditBtn = document.getElementById('cancelEditBtn');
         const loadBtn = document.getElementById('loadBtn');
         const propertiesTableBody = document.getElementById('propertiesTableBody');
         const messageBox = document.getElementById('messageBox');
-
-        const dashboardCheckboxes = document.getElementById('dashboardCheckboxes');
-        const compareBtn = document.getElementById('compareBtn');
-        const roiBarChartCanvas = document.getElementById('roiBarChart');
-        const noChartDataMessage = document.getElementById('noChartDataMessage');
 
         const confirmationModal = document.getElementById('confirmationModal');
         const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
         const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
 
         // Loading state elements
-        const saveUpdateBtnText = document.getElementById('saveUpdateBtnText'); // Renamed
-        const saveUpdateBtnSpinner = document.getElementById('saveUpdateBtnSpinner'); // Renamed
+        const saveUpdateBtnText = document.getElementById('saveUpdateBtnText');
+        const saveUpdateBtnSpinner = document.getElementById('saveUpdateBtnSpinner');
         const loadBtnText = document.getElementById('loadBtnText');
         const loadBtnSpinner = document.getElementById('loadBtnSpinner');
-        const compareBtnText = document.getElementById('compareBtnText');
-        const compareBtnSpinner = document.getElementById('compareBtnSpinner');
 
         // Validation error elements
         const propertyNameError = document.getElementById('propertyNameError');
@@ -566,7 +555,7 @@
                     showMessage(`Error deleting property: ${error.message}`, 'error');
                 } else {
                     showMessage('Property deleted successfully!', 'success');
-                    loadProperties(); // Reload properties to update the table and dashboard
+                    loadProperties(); // Reload properties to update the table
                 }
             } catch (err) {
                 console.error('Unexpected error during delete:', err);
@@ -589,8 +578,7 @@
             try {
                 const { data, error } = await supabase
                     .from('properties')
-                    .select('*')
-                    .order('record_date', { ascending: false }); // Order by record_date
+                    .select('*'); // Removed initial order by to allow client-side sorting
 
                 if (error) {
                     console.error('Error loading properties:', error.message);
@@ -607,8 +595,7 @@
                     }
                 } else {
                     allProperties = data; // Store loaded properties
-                    renderProperties(data);
-                    renderDashboardCheckboxes(data); // Render checkboxes after loading
+                    sortProperties(currentSortColumn, currentSortDirection); // Apply initial sort
                     showMessage('Properties loaded successfully!', 'info');
                 }
             } catch (err) {
@@ -618,6 +605,41 @@
             } finally {
                 setLoading(loadBtn, false); // Hide loading state
             }
+        }
+
+        // --- Sort Properties Function ---
+        function sortProperties(column, direction) {
+            allProperties.sort((a, b) => {
+                let valA = a[column];
+                let valB = b[column];
+
+                // Handle date comparison
+                if (column === 'record_date') {
+                    valA = new Date(valA || 0);
+                    valB = new Date(valB || 0);
+                }
+                // Handle case-insensitive string comparison for property_name
+                else if (column === 'property_name' && typeof valA === 'string' && typeof valB === 'string') {
+                    valA = valA.toLowerCase();
+                    valB = valB.toLowerCase();
+                }
+
+                if (valA < valB) return direction === 'asc' ? -1 : 1;
+                if (valA > valB) return direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+            renderProperties(allProperties);
+            updateSortIndicators(column, direction);
+        }
+
+        // --- Update Sort Indicators in Table Headers ---
+        function updateSortIndicators(column, direction) {
+            document.querySelectorAll('.sortable-header').forEach(header => {
+                header.classList.remove('asc', 'desc');
+                if (header.dataset.sortBy === column) {
+                    header.classList.add(direction);
+                }
+            });
         }
 
         // --- Render Properties to Table ---
@@ -665,143 +687,6 @@
             });
         }
 
-        // --- Render Dashboard Checkboxes ---
-        function renderDashboardCheckboxes(properties) {
-            dashboardCheckboxes.innerHTML = ''; // Clear existing checkboxes
-            selectedPropertyIds.clear(); // Clear selections when re-rendering
-
-            if (properties.length === 0) {
-                dashboardCheckboxes.innerHTML = `<p class="text-gray-500 col-span-full text-center">No properties available for comparison.</p>`;
-                return;
-            }
-
-            properties.forEach(property => {
-                const checkboxDiv = document.createElement('div');
-                checkboxDiv.classList.add('flex', 'items-center');
-                checkboxDiv.innerHTML = `
-                    <input id="compare-${property.id}" type="checkbox" data-id="${property.id}"
-                           class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
-                    <label for="compare-${property.id}" class="ml-2 block text-sm text-gray-900">${property.property_name}</label>
-                `;
-                dashboardCheckboxes.appendChild(checkboxDiv);
-            });
-
-            // Add event listener for checkboxes
-            dashboardCheckboxes.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
-                checkbox.addEventListener('change', (event) => {
-                    const id = event.target.dataset.id;
-                    if (event.target.checked) {
-                        if (selectedPropertyIds.size < 5) { // Limit to 5 properties
-                            selectedPropertyIds.add(id);
-                        } else {
-                            event.target.checked = false; // Uncheck if limit reached
-                            showMessage('You can select a maximum of 5 properties for comparison.', 'info');
-                        }
-                    } else {
-                        selectedPropertyIds.delete(id);
-                    }
-                });
-            });
-            // Re-render chart if already on dashboard tab and properties were loaded/deleted
-            // This is crucial for the dashboard to update when properties are loaded/deleted from other tabs
-            if (document.getElementById('dashboard-tab').classList.contains('active')) {
-                compareSelectedProperties();
-            }
-        }
-
-        // --- Render ROI Bar Chart ---
-        function renderRoiBarChart(propertiesToCompare) {
-            if (roiChart) {
-                roiChart.destroy(); // Destroy existing chart instance if it exists
-            }
-
-            if (propertiesToCompare.length === 0) {
-                noChartDataMessage.classList.remove('hidden');
-                roiBarChartCanvas.classList.add('hidden');
-                return;
-            } else {
-                noChartDataMessage.classList.add('hidden');
-                roiBarChartCanvas.classList.remove('hidden');
-            }
-
-            const labels = propertiesToCompare.map(p => p.property_name);
-            const data = propertiesToCompare.map(p => parseFloat(p.roi || 0));
-            const backgroundColors = [
-                'rgba(75, 192, 192, 0.6)',
-                'rgba(153, 102, 255, 0.6)',
-                'rgba(255, 159, 64, 0.6)',
-                'rgba(54, 162, 235, 0.6)',
-                'rgba(255, 99, 132, 0.6)'
-            ];
-            const borderColors = [
-                'rgba(75, 192, 192, 1)',
-                'rgba(153, 102, 255, 1)',
-                'rgba(255, 159, 64, 1)',
-                'rgba(54, 162, 235, 1)',
-                'rgba(255, 99, 132, 1)'
-            ];
-
-            const ctx = roiBarChartCanvas.getContext('2d');
-            roiChart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'ROI (%)',
-                        data: data,
-                        backgroundColor: backgroundColors.slice(0, propertiesToCompare.length),
-                        borderColor: borderColors.slice(0, propertiesToCompare.length),
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false, // Allow chart to fill container
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            title: {
-                                display: true,
-                                text: 'ROI (%)'
-                            }
-                        },
-                        x: {
-                            title: {
-                                display: true,
-                                text: 'Property Name'
-                            }
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            display: false // No need for legend if only one dataset
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    return `${context.dataset.label}: ${context.raw.toFixed(2)}%`;
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-        }
-
-        // --- Compare Selected Properties ---
-        function compareSelectedProperties() {
-            setLoading(compareBtn, true); // Show loading state
-
-            const propertiesToCompare = allProperties.filter(p => selectedPropertyIds.has(p.id));
-
-            // Sort by ROI descending for better comparison
-            propertiesToCompare.sort((a, b) => (b.roi || 0) - (a.roi || 0));
-
-            renderRoiBarChart(propertiesToCompare); // Render the chart
-
-            setLoading(compareBtn, false); // Hide loading state
-        }
-
         // --- Tab Switching Logic ---
         function switchTab(selectedTabId) {
             tabContents.forEach(content => {
@@ -818,20 +703,13 @@
             const activeTabButton = document.querySelector(`[data-tab="${selectedTabId.replace('-tab', '')}"]`);
             activeTabButton.classList.add('active', 'bg-blue-600', 'text-white', 'shadow-md');
             activeTabButton.classList.remove('text-gray-600', 'hover:bg-gray-100');
-
-
-            // Special handling for dashboard tab
-            if (selectedTabId === 'dashboard-tab') {
-                compareSelectedProperties(); // Re-render chart when dashboard tab is activated
-            }
         }
 
         // --- Event Listeners ---
         calculateBtn.addEventListener('click', calculateROI);
-        saveUpdateBtn.addEventListener('click', saveOrUpdateProperty); // Use the combined save/update function
-        cancelEditBtn.addEventListener('click', resetForm); // New event listener for cancel edit
+        saveUpdateBtn.addEventListener('click', saveOrUpdateProperty);
+        cancelEditBtn.addEventListener('click', resetForm);
         loadBtn.addEventListener('click', loadProperties);
-        compareBtn.addEventListener('click', compareSelectedProperties);
 
         // Add event listeners for tab buttons
         tabButtons.forEach(button => {
@@ -846,6 +724,19 @@
         rentalIncomeInput.addEventListener('input', clearValidationErrors);
         houseValueInput.addEventListener('input', clearValidationErrors);
 
+        // Add event listeners for sortable table headers
+        document.querySelectorAll('.sortable-header').forEach(header => {
+            header.addEventListener('click', () => {
+                const column = header.dataset.sortBy;
+                if (currentSortColumn === column) {
+                    currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+                } else {
+                    currentSortColumn = column;
+                    currentSortDirection = 'asc'; // Default to ascending when changing column
+                }
+                sortProperties(currentSortColumn, currentSortDirection);
+            });
+        });
 
         // Initialize Supabase and load properties when the page loads
         window.onload = () => {
