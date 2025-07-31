@@ -36,8 +36,11 @@
         .tab-content.active {
             display: block;
         }
+        .tab-button {
+            @apply text-gray-600 hover:bg-gray-100; /* Default inactive state */
+        }
         .tab-button.active {
-            @apply bg-blue-600 text-white;
+            @apply bg-blue-600 text-white shadow-md; /* Active state */
         }
         /* Spinner styles */
         .spinner {
@@ -77,6 +80,11 @@
                     <input type="text" id="propertyName" placeholder="e.g., City Apartment"
                            class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                     <p id="propertyNameError" class="text-red-500 text-xs mt-1 hidden">Property name is required.</p>
+                </div>
+                <div>
+                    <label for="recordDate" class="block text-sm font-medium text-gray-700 mb-1">Record Date (Optional)</label>
+                    <input type="date" id="recordDate"
+                           class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                 </div>
                 <div>
                     <label for="rentalIncome" class="block text-sm font-medium text-gray-700 mb-1">Monthly Rental Income ($)</label>
@@ -135,10 +143,14 @@
                         class="w-full sm:w-auto px-6 py-3 bg-blue-600 text-white font-semibold rounded-md shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-150 ease-in-out">
                     Calculate ROI
                 </button>
-                <button id="saveBtn"
+                <button id="saveUpdateBtn"
                         class="w-full sm:w-auto px-6 py-3 bg-green-600 text-white font-semibold rounded-md shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition duration-150 ease-in-out">
-                    <span id="saveBtnText">Save Property</span>
-                    <span id="saveBtnSpinner" class="spinner hidden"></span>
+                    <span id="saveUpdateBtnText">Save Property</span>
+                    <span id="saveUpdateBtnSpinner" class="spinner hidden"></span>
+                </button>
+                <button id="cancelEditBtn"
+                        class="w-full sm:w-auto px-6 py-3 bg-gray-400 text-gray-800 font-semibold rounded-md shadow-md hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-2 transition duration-150 ease-in-out hidden">
+                    Cancel Edit
                 </button>
             </div>
         </div>
@@ -158,6 +170,7 @@
                     <thead class="bg-gray-50">
                         <tr>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Property Name</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Record Date</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Monthly Income ($)</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Value ($)</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Expenses ($)</th>
@@ -168,7 +181,7 @@
                     <tbody id="propertiesTableBody" class="bg-white divide-y divide-gray-200">
                         <!-- Properties will be loaded here -->
                         <tr>
-                            <td colspan="6" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">No properties saved yet.</td>
+                            <td colspan="7" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">No properties saved yet.</td>
                         </tr>
                     </tbody>
                 </table>
@@ -229,12 +242,14 @@
         let allProperties = []; // Store all loaded properties for dashboard use
         let selectedPropertyIds = new Set(); // To track selected properties for comparison
         let roiChart = null; // To hold the Chart.js instance
+        let editingPropertyId = null; // To track which property is being edited
 
         // --- DOM Elements ---
         const tabButtons = document.querySelectorAll('.tab-button');
         const tabContents = document.querySelectorAll('.tab-content');
 
         const propertyNameInput = document.getElementById('propertyName');
+        const recordDateInput = document.getElementById('recordDate'); // New timestamp input
         const rentalIncomeInput = document.getElementById('rentalIncome');
         const houseValueInput = document.getElementById('houseValue');
         const managementFeeInput = document.getElementById('managementFee');
@@ -246,14 +261,14 @@
         const roiDisplay = document.getElementById('roiDisplay');
         const totalExpensesDisplay = document.getElementById('totalExpensesDisplay');
         const calculateBtn = document.getElementById('calculateBtn');
-        const saveBtn = document.getElementById('saveBtn');
+        const saveUpdateBtn = document.getElementById('saveUpdateBtn'); // Renamed from saveBtn
+        const cancelEditBtn = document.getElementById('cancelEditBtn'); // New cancel edit button
         const loadBtn = document.getElementById('loadBtn');
         const propertiesTableBody = document.getElementById('propertiesTableBody');
         const messageBox = document.getElementById('messageBox');
 
         const dashboardCheckboxes = document.getElementById('dashboardCheckboxes');
         const compareBtn = document.getElementById('compareBtn');
-        const comparisonList = document.getElementById('comparisonList'); // This is now for the chart, not a list
         const roiBarChartCanvas = document.getElementById('roiBarChart');
         const noChartDataMessage = document.getElementById('noChartDataMessage');
 
@@ -262,8 +277,8 @@
         const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
 
         // Loading state elements
-        const saveBtnText = document.getElementById('saveBtnText');
-        const saveBtnSpinner = document.getElementById('saveBtnSpinner');
+        const saveUpdateBtnText = document.getElementById('saveUpdateBtnText'); // Renamed
+        const saveUpdateBtnSpinner = document.getElementById('saveUpdateBtnSpinner'); // Renamed
         const loadBtnText = document.getElementById('loadBtnText');
         const loadBtnSpinner = document.getElementById('loadBtnSpinner');
         const compareBtnText = document.getElementById('compareBtnText');
@@ -388,46 +403,62 @@
             return { roi: roi.toFixed(2), annualRentalIncome: annualRentalIncome, totalExpenses: totalExpenses, managementFee, repairCleaning, commission, insurance, others };
         }
 
-        // --- Save Property to Supabase ---
-        async function saveProperty() {
+        // --- Save or Update Property to Supabase ---
+        async function saveOrUpdateProperty() {
             if (!supabase) {
                 showMessage('Supabase is not initialized. Please check your configuration.', 'error');
                 return;
             }
 
-            setLoading(saveBtn, true); // Show loading state
+            setLoading(saveUpdateBtn, true); // Show loading state
 
             const propertyName = propertyNameInput.value.trim();
+            const recordDate = recordDateInput.value || new Date().toISOString().split('T')[0]; // Use input date or current date
             const calculationResult = calculateROI(); 
             if (calculationResult === null) { // If calculateROI returned null due to invalid input
-                setLoading(saveBtn, false); // Hide loading state
+                setLoading(saveUpdateBtn, false); // Hide loading state
                 return;
             }
 
             const { roi, annualRentalIncome, totalExpenses, managementFee, repairCleaning, commission, insurance, others } = calculationResult;
 
+            const propertyData = {
+                property_name: propertyName,
+                record_date: recordDate, // New field
+                rental_income: annualRentalIncome,
+                house_value: parseFloat(houseValueInput.value) || 0,
+                total_expenses: totalExpenses,
+                management_fee: managementFee,
+                repair_cleaning: repairCleaning,
+                commission: commission,
+                insurance: insurance,
+                others_expenses: others,
+                roi: parseFloat(roi)
+            };
+
             try {
-                const { data, error } = await supabase
-                    .from('properties')
-                    .insert([
-                        {
-                            property_name: propertyName,
-                            rental_income: annualRentalIncome, // Store annual income in DB
-                            house_value: parseFloat(houseValueInput.value) || 0,
-                            total_expenses: totalExpenses,
-                            management_fee: managementFee,
-                            repair_cleaning: repairCleaning,
-                            commission: commission,
-                            insurance: insurance,
-                            others_expenses: others,
-                            roi: parseFloat(roi)
-                        }
-                    ]);
+                let error = null;
+                if (editingPropertyId) {
+                    // Update existing property
+                    const response = await supabase
+                        .from('properties')
+                        .update(propertyData)
+                        .eq('id', editingPropertyId);
+                    error = response.error;
+                } else {
+                    // Insert new property
+                    const response = await supabase
+                        .from('properties')
+                        .insert([propertyData]);
+                    error = response.error;
+                }
 
                 if (error) {
-                    console.error('Error saving property:', error.message);
+                    console.error('Error saving/updating property:', error.message);
                     if (error.message.includes('relation "public.properties" does not exist')) {
-                        showMessage('Error: The "properties" table does not exist in your Supabase project. Please ensure you have created a table named "properties" (all lowercase) in the "public" schema of your Supabase database, and that RLS policies (if enabled) allow inserts.', 'error');
+                        showMessage('Error: The "properties" table does not exist in your Supabase project. Please ensure you have created a table named "properties" (all lowercase) in the "public" schema of your Supabase database, and that RLS policies (if enabled) allow inserts/updates.', 'error');
+                    } else if (error.message.includes('column "record_date" of relation "properties" does not exist')) {
+                        showMessage('Error: The "record_date" column is missing in your Supabase "properties" table. Please add it (type: date or timestamp).', 'error');
                     } else if (error.message.includes('column "management_fee" of relation "properties" does not exist') ||
                                error.message.includes('column "repair_cleaning" of relation "properties" does not exist') ||
                                error.message.includes('column "commission" of relation "properties" does not exist') ||
@@ -436,29 +467,68 @@
                          showMessage('Error: One or more expense columns are missing in your Supabase "properties" table. Please add: total_expenses, management_fee, repair_cleaning, commission, insurance, others_expenses (all numeric/double precision).', 'error');
                     }
                     else {
-                        showMessage(`Error saving property: ${error.message}`, 'error');
+                        showMessage(`Error saving/updating property: ${error.message}`, 'error');
                     }
                 } else {
-                    showMessage('Property saved successfully!', 'success');
-                    // Clear form after successful save
-                    propertyNameInput.value = '';
-                    rentalIncomeInput.value = '';
-                    houseValueInput.value = '';
-                    managementFeeInput.value = '';
-                    repairCleaningInput.value = '';
-                    commissionInput.value = '';
-                    insuranceInput.value = '';
-                    othersInput.value = '';
-                    roiDisplay.textContent = '0.00%';
-                    totalExpensesDisplay.textContent = 'Total Annual Expenses: $0.00';
-                    clearValidationErrors(); // Clear validation errors on successful save
-                    loadProperties(); // Reload properties to show the new one
+                    showMessage(`Property ${editingPropertyId ? 'updated' : 'saved'} successfully!`, 'success');
+                    resetForm(); // Clear form and reset to save mode
+                    loadProperties(); // Reload properties to show the new/updated one
                 }
             } catch (err) {
-                console.error('Unexpected error during save:', err);
-                showMessage('An unexpected error occurred while saving.', 'error');
+                console.error('Unexpected error during save/update:', err);
+                showMessage('An unexpected error occurred while saving/updating.', 'error');
             } finally {
-                setLoading(saveBtn, false); // Hide loading state
+                setLoading(saveUpdateBtn, false); // Hide loading state
+            }
+        }
+
+        // --- Reset Form and UI to Save Mode ---
+        function resetForm() {
+            propertyNameInput.value = '';
+            recordDateInput.value = ''; // Clear date input
+            rentalIncomeInput.value = '';
+            houseValueInput.value = '';
+            managementFeeInput.value = '';
+            repairCleaningInput.value = '';
+            commissionInput.value = '';
+            insuranceInput.value = '';
+            othersInput.value = '';
+            roiDisplay.textContent = '0.00%';
+            totalExpensesDisplay.textContent = 'Total Annual Expenses: $0.00';
+            clearValidationErrors();
+            editingPropertyId = null; // Exit edit mode
+            saveUpdateBtnText.textContent = 'Save Property';
+            saveUpdateBtn.classList.remove('bg-yellow-600', 'hover:bg-yellow-700');
+            saveUpdateBtn.classList.add('bg-green-600', 'hover:bg-green-700');
+            cancelEditBtn.classList.add('hidden');
+        }
+
+        // --- Edit Property Function ---
+        function editProperty(id) {
+            const propertyToEdit = allProperties.find(p => p.id === id);
+            if (propertyToEdit) {
+                propertyNameInput.value = propertyToEdit.property_name;
+                recordDateInput.value = propertyToEdit.record_date ? propertyToEdit.record_date.split('T')[0] : ''; // Format date for input
+                rentalIncomeInput.value = (propertyToEdit.rental_income / 12).toFixed(2); // Convert annual back to monthly
+                houseValueInput.value = propertyToEdit.house_value;
+                managementFeeInput.value = propertyToEdit.management_fee;
+                repairCleaningInput.value = propertyToEdit.repair_cleaning;
+                commissionInput.value = propertyToEdit.commission;
+                insuranceInput.value = propertyToEdit.insurance;
+                othersInput.value = propertyToEdit.others_expenses;
+                
+                // Recalculate ROI and expenses to update displays
+                calculateROI(); 
+
+                editingPropertyId = id; // Set edit mode
+                saveUpdateBtnText.textContent = 'Update Property';
+                saveUpdateBtn.classList.remove('bg-green-600', 'hover:bg-green-700');
+                saveUpdateBtn.classList.add('bg-yellow-600', 'hover:bg-yellow-700');
+                cancelEditBtn.classList.remove('hidden');
+                switchTab('calculator-tab'); // Switch to calculator tab
+                showMessage(`Editing property: ${propertyToEdit.property_name}`, 'info');
+            } else {
+                showMessage('Property not found for editing.', 'error');
             }
         }
 
@@ -520,16 +590,20 @@
                 const { data, error } = await supabase
                     .from('properties')
                     .select('*')
-                    .order('created_at', { ascending: false });
+                    .order('record_date', { ascending: false }); // Order by record_date
 
                 if (error) {
                     console.error('Error loading properties:', error.message);
                     if (error.message.includes('relation "public.properties" does not exist')) {
                         showMessage('Error: The "properties" table does not exist in your Supabase project. Please ensure you have created a table named "properties" (all lowercase) in the "public" schema of your Supabase database, and that RLS policies (if enabled) allow selects.', 'error');
-                        propertiesTableBody.innerHTML = `<tr><td colspan="6" class="px-6 py-4 whitespace-nowrap text-sm text-red-500 text-center">Table "properties" not found. Please create it in Supabase.</td></tr>`;
-                    } else {
+                        propertiesTableBody.innerHTML = `<tr><td colspan="7" class="px-6 py-4 whitespace-nowrap text-sm text-red-500 text-center">Table "properties" not found. Please create it in Supabase.</td></tr>`;
+                    } else if (error.message.includes('column "record_date" of relation "properties" does not exist')) {
+                        showMessage('Error: The "record_date" column is missing in your Supabase "properties" table. Please add it (type: date or timestamp).', 'error');
+                        propertiesTableBody.innerHTML = `<tr><td colspan="7" class="px-6 py-4 whitespace-nowrap text-sm text-red-500 text-center">Missing "record_date" column in Supabase.</td></tr>`;
+                    }
+                    else {
                         showMessage(`Error loading properties: ${error.message}`, 'error');
-                        propertiesTableBody.innerHTML = `<tr><td colspan="6" class="px-6 py-4 whitespace-nowrap text-sm text-red-500 text-center">Error loading properties.</td></tr>`;
+                        propertiesTableBody.innerHTML = `<tr><td colspan="7" class="px-6 py-4 whitespace-nowrap text-sm text-red-500 text-center">Error loading properties.</td></tr>`;
                     }
                 } else {
                     allProperties = data; // Store loaded properties
@@ -540,7 +614,7 @@
             } catch (err) {
                 console.error('Unexpected error during load:', err);
                 showMessage('An unexpected error occurred while loading properties.', 'error');
-                propertiesTableBody.innerHTML = `<tr><td colspan="6" class="px-6 py-4 whitespace-nowrap text-sm text-red-500 text-center">An unexpected error occurred.</td></tr>`;
+                propertiesTableBody.innerHTML = `<tr><td colspan="7" class="px-6 py-4 whitespace-nowrap text-sm text-red-500 text-center">An unexpected error occurred.</td></tr>`;
             } finally {
                 setLoading(loadBtn, false); // Hide loading state
             }
@@ -551,32 +625,42 @@
             propertiesTableBody.innerHTML = ''; // Clear existing rows
 
             if (properties.length === 0) {
-                propertiesTableBody.innerHTML = `<tr><td colspan="6" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">No properties saved yet.</td></tr>`;
+                propertiesTableBody.innerHTML = `<tr><td colspan="7" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">No properties saved yet.</td></tr>`;
                 return;
             }
 
             properties.forEach(property => {
                 const monthlyIncome = (property.rental_income || 0) / 12; // Convert annual income back to monthly for display
+                const recordDateFormatted = property.record_date ? new Date(property.record_date).toLocaleDateString('en-GB') : 'N/A'; // Format date
+
                 const row = document.createElement('tr');
                 row.classList.add('hover:bg-gray-50'); // Add hover effect
                 row.innerHTML = `
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${property.property_name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${recordDateFormatted}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">$${monthlyIncome.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">$${property.house_value.toLocaleString()}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">$${(property.total_expenses || 0).toLocaleString()}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-600 font-semibold">${(property.roi || 0).toFixed(2)}%</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium flex space-x-2">
+                        <button class="edit-btn text-indigo-600 hover:text-indigo-900" data-id="${property.id}">Edit</button>
                         <button class="delete-btn text-red-600 hover:text-red-900" data-id="${property.id}">Delete</button>
                     </td>
                 `;
                 propertiesTableBody.appendChild(row);
             });
 
-            // Add event listeners for delete buttons
+            // Add event listeners for delete and edit buttons
             propertiesTableBody.querySelectorAll('.delete-btn').forEach(button => {
                 button.addEventListener('click', (event) => {
                     const propertyId = event.target.dataset.id;
                     deleteProperty(propertyId);
+                });
+            });
+            propertiesTableBody.querySelectorAll('.edit-btn').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    const propertyId = event.target.dataset.id;
+                    editProperty(propertyId);
                 });
             });
         }
@@ -619,6 +703,7 @@
                 });
             });
             // Re-render chart if already on dashboard tab and properties were loaded/deleted
+            // This is crucial for the dashboard to update when properties are loaded/deleted from other tabs
             if (document.getElementById('dashboard-tab').classList.contains('active')) {
                 compareSelectedProperties();
             }
@@ -724,10 +809,16 @@
             });
             tabButtons.forEach(button => {
                 button.classList.remove('active');
+                // Remove active styling from all buttons
+                button.classList.remove('bg-blue-600', 'text-white', 'shadow-md');
+                button.classList.add('text-gray-600', 'hover:bg-gray-100');
             });
 
             document.getElementById(selectedTabId).classList.add('active');
-            document.querySelector(`[data-tab="${selectedTabId.replace('-tab', '')}"]`).classList.add('active');
+            const activeTabButton = document.querySelector(`[data-tab="${selectedTabId.replace('-tab', '')}"]`);
+            activeTabButton.classList.add('active', 'bg-blue-600', 'text-white', 'shadow-md');
+            activeTabButton.classList.remove('text-gray-600', 'hover:bg-gray-100');
+
 
             // Special handling for dashboard tab
             if (selectedTabId === 'dashboard-tab') {
@@ -737,7 +828,8 @@
 
         // --- Event Listeners ---
         calculateBtn.addEventListener('click', calculateROI);
-        saveBtn.addEventListener('click', saveProperty);
+        saveUpdateBtn.addEventListener('click', saveOrUpdateProperty); // Use the combined save/update function
+        cancelEditBtn.addEventListener('click', resetForm); // New event listener for cancel edit
         loadBtn.addEventListener('click', loadProperties);
         compareBtn.addEventListener('click', compareSelectedProperties);
 
