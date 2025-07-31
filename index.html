@@ -58,6 +58,30 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+
+        /* Table specific styles to prevent horizontal scroll for small number of columns */
+        .properties-table-container {
+            overflow-x: auto; /* Allow horizontal scroll if content is too wide */
+        }
+        @media (min-width: 768px) { /* On medium and larger screens */
+            .properties-table-container table {
+                table-layout: fixed; /* Fix table layout */
+                width: 100%; /* Ensure table takes full width */
+            }
+            .properties-table-container th,
+            .properties-table-container td {
+                white-space: nowrap; /* Prevent text wrapping */
+                overflow: hidden; /* Hide overflowing content */
+                text-overflow: ellipsis; /* Show ellipsis for overflow */
+            }
+            .properties-table-container th:nth-child(1), .properties-table-container td:nth-child(1) { width: 15%; } /* Property Name */
+            .properties-table-container th:nth-child(2), .properties-table-container td:nth-child(2) { width: 12%; } /* Record Date */
+            .properties-table-container th:nth-child(3), .properties-table-container td:nth-child(3) { width: 15%; } /* Monthly Income */
+            .properties-table-container th:nth-child(4), .properties-table-container td:nth-child(4) { width: 15%; } /* Value */
+            .properties-table-container th:nth-child(5), .properties-table-container td:nth-child(5) { width: 15%; } /* Total Expenses */
+            .properties-table-container th:nth-child(6), .properties-table-container td:nth-child(6) { width: 10%; } /* ROI */
+            .properties-table-container th:nth-child(7), .properties-table-container td:nth-child(7) { width: 18%; } /* Actions */
+        }
     </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-4">
@@ -165,7 +189,7 @@
                     <span id="loadBtnSpinner" class="spinner hidden"></span>
                 </button>
             </div>
-            <div class="overflow-x-auto rounded-lg shadow-md border border-gray-200 mb-8">
+            <div class="properties-table-container rounded-lg shadow-md border border-gray-200 mb-8">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
@@ -636,13 +660,13 @@
                 const row = document.createElement('tr');
                 row.classList.add('hover:bg-gray-50'); // Add hover effect
                 row.innerHTML = `
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${property.property_name}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${recordDateFormatted}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">$${monthlyIncome.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">$${property.house_value.toLocaleString()}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">$${(property.total_expenses || 0).toLocaleString()}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-600 font-semibold">${(property.roi || 0).toFixed(2)}%</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium flex space-x-2">
+                    <td class="px-6 py-4 text-sm font-medium text-gray-900">${property.property_name}</td>
+                    <td class="px-6 py-4 text-sm text-gray-500">${recordDateFormatted}</td>
+                    <td class="px-6 py-4 text-sm text-gray-500">$${monthlyIncome.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td class="px-6 py-4 text-sm text-gray-500">$${property.house_value.toLocaleString()}</td>
+                    <td class="px-6 py-4 text-sm text-gray-500">$${(property.total_expenses || 0).toLocaleString()}</td>
+                    <td class="px-6 py-4 text-sm text-blue-600 font-semibold">${(property.roi || 0).toFixed(2)}%</td>
+                    <td class="px-6 py-4 text-sm font-medium flex space-x-2">
                         <button class="edit-btn text-indigo-600 hover:text-indigo-900" data-id="${property.id}">Edit</button>
                         <button class="delete-btn text-red-600 hover:text-red-900" data-id="${property.id}">Delete</button>
                     </td>
