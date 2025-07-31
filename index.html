@@ -31,7 +31,7 @@
     </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-4">
-    <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-2xl border border-gray-200">
+    <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-3xl border border-gray-200">
         <h1 class="text-3xl font-bold text-center text-gray-800 mb-8">Property Rental Return Calculator</h1>
 
         <!-- Input Section -->
@@ -51,10 +51,35 @@
                 <input type="number" id="houseValue" placeholder="e.g., 200000"
                        class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
             </div>
-            <div>
-                <label for="expenses" class="block text-sm font-medium text-gray-700 mb-1">Annual Expenses (£)</label>
-                <input type="number" id="expenses" placeholder="e.g., 3000"
-                       class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+            <div class="md:col-span-2">
+                <h3 class="text-lg font-semibold text-gray-800 mb-3 mt-4">Annual Expenses (£)</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div>
+                        <label for="managementFee" class="block text-sm font-medium text-gray-700 mb-1">Management Fee</label>
+                        <input type="number" id="managementFee" value="0"
+                               class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    </div>
+                    <div>
+                        <label for="repairCleaning" class="block text-sm font-medium text-gray-700 mb-1">Repair/Cleaning</label>
+                        <input type="number" id="repairCleaning" value="0"
+                               class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    </div>
+                    <div>
+                        <label for="commission" class="block text-sm font-medium text-gray-700 mb-1">Commission</label>
+                        <input type="number" id="commission" value="0"
+                               class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    </div>
+                    <div>
+                        <label for="insurance" class="block text-sm font-medium text-gray-700 mb-1">Insurance</label>
+                        <input type="number" id="insurance" value="0"
+                               class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    </div>
+                    <div>
+                        <label for="others" class="block text-sm font-medium text-gray-700 mb-1">Others</label>
+                        <input type="number" id="others" value="0"
+                               class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -62,6 +87,7 @@
         <div class="flex flex-col items-center justify-center mb-8">
             <p class="text-lg font-medium text-gray-700">Calculated ROI:</p>
             <p id="roiDisplay" class="text-4xl font-extrabold text-blue-600 mt-2">0.00%</p>
+            <p id="totalExpensesDisplay" class="text-md text-gray-600 mt-1">Total Annual Expenses: £0.00</p>
         </div>
 
         <!-- Action Buttons -->
@@ -92,7 +118,7 @@
                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Property Name</th>
                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Income (£)</th>
                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Value (£)</th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expenses (£)</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Expenses (£)</th>
                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ROI (%)</th>
                     </tr>
                 </thead>
@@ -112,8 +138,7 @@
 
         // --- Supabase Configuration ---
         const SUPABASE_URL = 'https://vqaqiwfkwtgkbcccmhag.supabase.co';
-        // The Anon Key will be replaced by the build script
-        const SUPABASE_ANON_KEY = '__SUPABASE_ANON_KEY_PLACEHOLDER__'; // THIS IS THE PLACEHOLDER
+        const SUPABASE_ANON_KEY = '__SUPABASE_ANON_KEY_PLACEHOLDER__'; // This will be replaced by Netlify build
 
         let supabase = null; // Initialize supabase client as null
 
@@ -121,8 +146,15 @@
         const propertyNameInput = document.getElementById('propertyName');
         const rentalIncomeInput = document.getElementById('rentalIncome');
         const houseValueInput = document.getElementById('houseValue');
-        const expensesInput = document.getElementById('expenses');
+        // New expense input elements
+        const managementFeeInput = document.getElementById('managementFee');
+        const repairCleaningInput = document.getElementById('repairCleaning');
+        const commissionInput = document.getElementById('commission');
+        const insuranceInput = document.getElementById('insurance');
+        const othersInput = document.getElementById('others');
+
         const roiDisplay = document.getElementById('roiDisplay');
+        const totalExpensesDisplay = document.getElementById('totalExpensesDisplay'); // New display for total expenses
         const calculateBtn = document.getElementById('calculateBtn');
         const saveBtn = document.getElementById('saveBtn');
         const loadBtn = document.getElementById('loadBtn');
@@ -147,7 +179,6 @@
 
         // --- Initialize Supabase Client ---
         function initializeSupabase() {
-            // Check if the placeholder was replaced (meaning the build script ran)
             if (SUPABASE_ANON_KEY === '__SUPABASE_ANON_KEY_PLACEHOLDER__') {
                 showMessage('Supabase Anon Key is still a placeholder. This app needs to be deployed via Netlify with the SUPABASE_ANON_KEY environment variable set.', 'error');
                 console.error('Supabase initialization failed: Anon Key placeholder detected.');
@@ -168,19 +199,29 @@
         function calculateROI() {
             const rentalIncome = parseFloat(rentalIncomeInput.value);
             const houseValue = parseFloat(houseValueInput.value);
-            const expenses = parseFloat(expensesInput.value);
+            
+            // Get individual expense values, default to 0 if empty or invalid
+            const managementFee = parseFloat(managementFeeInput.value) || 0;
+            const repairCleaning = parseFloat(repairCleaningInput.value) || 0;
+            const commission = parseFloat(commissionInput.value) || 0;
+            const insurance = parseFloat(insuranceInput.value) || 0;
+            const others = parseFloat(othersInput.value) || 0;
 
-            // Validate inputs
-            if (isNaN(rentalIncome) || isNaN(houseValue) || isNaN(expenses) || houseValue <= 0) {
+            // Calculate total expenses
+            const totalExpenses = managementFee + repairCleaning + commission + insurance + others;
+            totalExpensesDisplay.textContent = `Total Annual Expenses: £${totalExpenses.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+            // Validate core inputs
+            if (isNaN(rentalIncome) || isNaN(houseValue) || houseValue <= 0) {
                 roiDisplay.textContent = 'Invalid Input';
-                showMessage('Please enter valid numeric values for all fields, and ensure House Value is greater than 0.', 'error');
+                showMessage('Please enter valid numeric values for Rental Income and House Value, and ensure House Value is greater than 0.', 'error');
                 return null;
             }
 
-            const netOperatingIncome = rentalIncome - expenses;
+            const netOperatingIncome = rentalIncome - totalExpenses;
             const roi = (netOperatingIncome / houseValue) * 100;
             roiDisplay.textContent = `${roi.toFixed(2)}%`;
-            return roi.toFixed(2); // Return as a string for consistency with display
+            return { roi: roi.toFixed(2), totalExpenses: totalExpenses, managementFee, repairCleaning, commission, insurance, others };
         }
 
         // --- Save Property to Supabase ---
@@ -193,19 +234,20 @@
             const propertyName = propertyNameInput.value.trim();
             const rentalIncome = parseFloat(rentalIncomeInput.value);
             const houseValue = parseFloat(houseValueInput.value);
-            const expenses = parseFloat(expensesInput.value);
-            const roi = calculateROI(); // Recalculate to ensure current value
-
+            
+            const calculationResult = calculateROI(); // Get all calculated values
             if (!propertyName) {
                 showMessage('Please enter a Property Name.', 'error');
                 return;
             }
-            if (roi === null) { // If calculateROI returned null due to invalid input
+            if (calculationResult === null) { // If calculateROI returned null due to invalid input
                 return;
             }
 
+            const { roi, totalExpenses, managementFee, repairCleaning, commission, insurance, others } = calculationResult;
+
             try {
-                // Insert data into the 'properties' table
+                // Insert data into the 'properties' table with new expense columns
                 const { data, error } = await supabase
                     .from('properties')
                     .insert([
@@ -213,17 +255,24 @@
                             property_name: propertyName,
                             rental_income: rentalIncome,
                             house_value: houseValue,
-                            expenses: expenses,
+                            total_expenses: totalExpenses, // Save total expenses
+                            management_fee: managementFee,
+                            repair_cleaning: repairCleaning,
+                            commission: commission,
+                            insurance: insurance,
+                            others_expenses: others,
                             roi: parseFloat(roi) // Store as number
                         }
                     ]);
 
                 if (error) {
                     console.error('Error saving property:', error.message);
-                    // Specific error handling for "relation does not exist"
                     if (error.message.includes('relation "public.properties" does not exist')) {
                         showMessage('Error: The "properties" table does not exist in your Supabase project. Please ensure you have created a table named "properties" (all lowercase) in the "public" schema of your Supabase database, and that RLS policies (if enabled) allow inserts.', 'error');
-                    } else {
+                    } else if (error.message.includes('column "management_fee" of relation "properties" does not exist')) {
+                         showMessage('Error: One or more expense columns are missing in your Supabase "properties" table. Please add: management_fee, repair_cleaning, commission, insurance, others_expenses (all double precision).', 'error');
+                    }
+                    else {
                         showMessage(`Error saving property: ${error.message}`, 'error');
                     }
                 } else {
@@ -232,8 +281,13 @@
                     propertyNameInput.value = '';
                     rentalIncomeInput.value = '';
                     houseValueInput.value = '';
-                    expensesInput.value = '';
+                    managementFeeInput.value = '0';
+                    repairCleaningInput.value = '0';
+                    commissionInput.value = '0';
+                    insuranceInput.value = '0';
+                    othersInput.value = '0';
                     roiDisplay.textContent = '0.00%';
+                    totalExpensesDisplay.textContent = 'Total Annual Expenses: £0.00';
                     loadProperties(); // Reload properties to show the new one
                 }
             } catch (err) {
@@ -250,7 +304,7 @@
             }
 
             try {
-                // Select all columns from the 'properties' table, ordered by creation time
+                // Select all columns from the 'properties' table, including new expense columns
                 const { data, error } = await supabase
                     .from('properties')
                     .select('*')
@@ -258,7 +312,6 @@
 
                 if (error) {
                     console.error('Error loading properties:', error.message);
-                    // Specific error handling for "relation does not exist"
                     if (error.message.includes('relation "public.properties" does not exist')) {
                         showMessage('Error: The "properties" table does not exist in your Supabase project. Please ensure you have created a table named "properties" (all lowercase) in the "public" schema of your Supabase database, and that RLS policies (if enabled) allow selects.', 'error');
                         propertiesTableBody.innerHTML = `<tr><td colspan="5" class="px-6 py-4 whitespace-nowrap text-sm text-red-500 text-center">Table "properties" not found. Please create it in Supabase.</td></tr>`;
@@ -293,8 +346,8 @@
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${property.property_name}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">£${property.rental_income.toLocaleString()}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">£${property.house_value.toLocaleString()}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">£${property.expenses.toLocaleString()}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-600 font-semibold">${property.roi.toFixed(2)}%</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">£${(property.total_expenses || 0).toLocaleString()}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-600 font-semibold">${(property.roi || 0).toFixed(2)}%</td>
                 `;
                 propertiesTableBody.appendChild(row);
             });
