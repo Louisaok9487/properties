@@ -494,7 +494,7 @@
 
         // --- Edit Property Function ---
         function editProperty(id) {
-            const propertyToEdit = allProperties.find(p => p.id === id);
+            const propertyToEdit = allProperties.find(p => p.id === parseInt(id));
             if (propertyToEdit) {
                 propertyNameInput.value = propertyToEdit.property_name;
                 recordDateInput.value = propertyToEdit.record_date ? propertyToEdit.record_date.split('T')[0] : ''; // Format date for input
