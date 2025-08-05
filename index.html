@@ -78,6 +78,23 @@
             border-top-color: #333;
             opacity: 1;
         }
+
+        /* Styles for sticky column */
+        .sticky-column-header {
+            position: sticky;
+            left: 0;
+            z-index: 10; /* Ensure it stays on top */
+            background-color: #f9fafb; /* Match the table header background */
+            border-right: 1px solid #e5e7eb; /* Add a subtle border for separation */
+        }
+
+        .sticky-column-cell {
+            position: sticky;
+            left: 0;
+            z-index: 5; /* Lower z-index than header but higher than other cells */
+            background-color: #ffffff; /* Match the table body background */
+            border-right: 1px solid #e5e7eb; /* Add a subtle border for separation */
+        }
     </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-4">
@@ -188,7 +205,8 @@
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort-by="property_name">Property Name</th>
+                            <!-- Applied sticky-column-header class here -->
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header sticky-column-header" data-sort-by="property_name">Property Name</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort-by="record_date">Record Date</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort-by="rental_income">Monthly Income ($)</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort-by="house_value">Value ($)</th>
@@ -658,7 +676,8 @@
                 const row = document.createElement('tr');
                 row.classList.add('hover:bg-gray-50'); // Add hover effect
                 row.innerHTML = `
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${property.property_name}</td>
+                    <!-- Applied sticky-column-cell class here -->
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 sticky-column-cell">${property.property_name}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${recordDateFormatted}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">$${monthlyIncome.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">$${property.house_value.toLocaleString()}</td>
