@@ -765,8 +765,7 @@
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 table-responsive-cell">
                         <span class="table-responsive-label md:hidden">Monthly Income:</span>
-                        <span class="table-responsive-value">$${monthlyIncome.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                    </td>
+                        <span class="table-responsive-value">$${monthlyIncome.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 table-responsive-cell">
                         <span class="table-responsive-label md:hidden">Value:</span>
                         <span class="table-responsive-value">$${property.house_value.toLocaleString()}</span>
@@ -859,20 +858,46 @@
 
         // --- Tab Switching Logic ---
         function switchTab(selectedTabId) {
+            console.log('Attempting to switch to tab:', selectedTabId);
+
+            // Deactivate all tab contents
             tabContents.forEach(content => {
-                content.classList.remove('active');
-            });
-            tabButtons.forEach(button => {
-                button.classList.remove('active');
-                // Remove active styling from all buttons
-                button.classList.remove('bg-blue-600', 'text-white', 'shadow-md');
-                button.classList.add('text-gray-600', 'hover:bg-gray-100');
+                if (content) { // Ensure content element exists
+                    content.classList.remove('active');
+                    console.log('Removed active from content:', content.id);
+                }
             });
 
-            document.getElementById(selectedTabId).classList.add('active');
+            // Deactivate all tab buttons and reset their styling
+            tabButtons.forEach(button => {
+                if (button) { // Ensure button element exists
+                    button.classList.remove('active', 'bg-blue-600', 'text-white', 'shadow-md');
+                    button.classList.add('text-gray-600', 'hover:bg-gray-100');
+                    console.log('Deactivated button:', button.dataset.tab);
+                }
+            });
+
+            // Activate the selected tab content
+            const targetContent = document.getElementById(selectedTabId);
+            if (targetContent) {
+                targetContent.classList.add('active');
+                console.log('Activated content:', targetContent.id);
+            } else {
+                console.error('Target content element not found:', selectedTabId);
+                showMessage(`Error: Content for tab "${selectedTabId}" not found.`, 'error');
+                return; // Stop execution if content not found
+            }
+
+            // Activate the corresponding tab button and apply active styling
             const activeTabButton = document.querySelector(`[data-tab="${selectedTabId.replace('-tab', '')}"]`);
-            activeTabButton.classList.add('active', 'bg-blue-600', 'text-white', 'shadow-md');
-            activeTabButton.classList.remove('text-gray-600', 'hover:bg-gray-100');
+            if (activeTabButton) {
+                activeTabButton.classList.add('active', 'bg-blue-600', 'text-white', 'shadow-md');
+                activeTabButton.classList.remove('text-gray-600', 'hover:bg-gray-100');
+                console.log('Activated button:', activeTabButton.dataset.tab);
+            } else {
+                console.error('Active tab button element not found for data-tab:', selectedTabId.replace('-tab', ''));
+                showMessage(`Error: Button for tab "${selectedTabId.replace('-tab', '')}" not found.`, 'error');
+            }
 
             // If switching to saved properties tab, ensure chart is rendered
             if (selectedTabId === 'saved-properties-tab') {
@@ -912,9 +937,13 @@
 
         // Initialize Supabase and load properties when the page loads
         window.onload = () => {
+            console.log('Window loaded, starting app initialization.');
             if (initializeSupabase()) {
                 loadProperties();
             }
+            // Log initial state of tab elements
+            console.log('Initial tab buttons:', tabButtons.length, tabButtons);
+            console.log('Initial tab contents:', tabContents.length, tabContents);
         };
 
     </script>
