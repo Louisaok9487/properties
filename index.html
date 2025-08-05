@@ -8,6 +8,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Inter Font from Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chart.js CDN for data visualisation -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -95,6 +97,51 @@
             background-color: #ffffff; /* Match the table body background */
             border-right: 1px solid #e5e7eb; /* Add a subtle border for separation */
         }
+
+        /* Mobile table specific styles */
+        @media (max-width: 767px) { /* Adjust breakpoint as needed for 'md' */
+            .table-responsive-row {
+                display: block;
+                margin-bottom: 1rem;
+                border: 1px solid #e5e7eb;
+                border-radius: 0.5rem;
+                overflow: hidden; /* Ensure rounded corners apply */
+            }
+            .table-responsive-cell {
+                display: flex;
+                justify-content: space-between;
+                padding: 0.75rem 1.5rem; /* px-6 py-3 equivalent */
+                border-bottom: 1px solid #f3f4f6; /* Light border between stacked items */
+            }
+            .table-responsive-cell:last-child {
+                border-bottom: none;
+            }
+            .table-responsive-label {
+                font-weight: 500; /* Medium font weight */
+                color: #4b5563; /* Gray-700 equivalent */
+                width: 40%; /* Adjust label width as needed */
+                flex-shrink: 0;
+            }
+            .table-responsive-value {
+                text-align: right;
+                width: 60%; /* Adjust value width as needed */
+            }
+            .table-responsive-actions {
+                justify-content: flex-end; /* Align action buttons to the right */
+            }
+            /* Hide the original table header on small screens */
+            .min-w-full thead {
+                display: none;
+            }
+            /* Ensure sticky column styles are overridden on mobile */
+            .sticky-column-header, .sticky-column-cell {
+                position: static;
+                left: auto;
+                z-index: auto;
+                border-right: none;
+                background-color: transparent;
+            }
+        }
     </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-4">
@@ -175,10 +222,7 @@
 
             <!-- Action Buttons -->
             <div class="flex flex-col sm:flex-row justify-center gap-4 mb-8">
-                <button id="calculateBtn"
-                        class="w-full sm:w-auto px-6 py-3 bg-blue-600 text-white font-semibold rounded-md shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-150 ease-in-out">
-                    Calculate ROI
-                </button>
+                <!-- Calculate ROI button removed for live calculation -->
                 <button id="saveUpdateBtn"
                         class="w-full sm:w-auto px-6 py-3 bg-green-600 text-white font-semibold rounded-md shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition duration-150 ease-in-out">
                     <span id="saveUpdateBtnText">Save Property</span>
@@ -201,6 +245,14 @@
                     <span id="loadBtnSpinner" class="spinner hidden"></span>
                 </button>
             </div>
+
+            <!-- Chart for Data Visualisation -->
+            <div class="mb-8 p-4 bg-gray-50 rounded-lg shadow-inner">
+                <h3 class="text-lg font-semibold text-gray-800 mb-3">ROI Overview</h3>
+                <canvas id="roiChart"></canvas>
+                <p class="text-sm text-gray-600 mt-2 text-center">Visualisation of ROI for your saved properties.</p>
+            </div>
+
             <div class="overflow-x-auto rounded-lg shadow-md border border-gray-200 mb-8">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
@@ -211,14 +263,14 @@
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort-by="rental_income">Monthly Income ($)</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort-by="house_value">Value ($)</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort-by="total_expenses">Total Expenses ($)</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort-by="roi">ROI (%)</th>
+                            <th scope="col" scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort-by="roi">ROI (%)</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
                     <tbody id="propertiesTableBody" class="bg-white divide-y divide-gray-200">
                         <!-- Properties will be loaded here -->
                         <tr>
-                            <td colspan="7" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">No properties saved yet.</td>
+                            <td colspan="7" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center md:table-cell">No properties saved yet. Go to the Calculator tab to add your first property!</td>
                         </tr>
                     </tbody>
                 </table>
@@ -226,12 +278,12 @@
         </div>
 
         <!-- Message Box for User Feedback (Global) -->
-        <div id="messageBox" class="hidden p-3 rounded-md text-sm text-center mt-4" role="alert"></div>
+        <div id="messageBox" class="hidden p-3 rounded-md text-sm text-center mt-4" role="alert" aria-live="polite"></div>
 
         <!-- Custom Confirmation Modal (Global) -->
-        <div id="confirmationModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div id="confirmationModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center hidden z-50" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
             <div class="bg-white p-6 rounded-lg shadow-lg max-w-sm w-full">
-                <h3 class="text-lg font-semibold text-gray-800 mb-4">Confirm Deletion</h3>
+                <h3 id="modalTitle" class="text-lg font-semibold text-gray-800 mb-4">Confirm Deletion</h3>
                 <p class="text-gray-700 mb-6">Are you sure you want to delete this property?</p>
                 <div class="flex justify-end space-x-4">
                     <button id="cancelDeleteBtn" class="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400">Cancel</button>
@@ -253,6 +305,7 @@
         let supabase = null; // Initialize supabase client as null
         let allProperties = []; // Store all loaded properties for sorting
         let editingPropertyId = null; // To track which property is being edited
+        let myChart = null; // Variable to hold the Chart.js instance
 
         // Sorting state
         let currentSortColumn = 'record_date'; // Default sort column
@@ -274,12 +327,13 @@
 
         const roiDisplay = document.getElementById('roiDisplay');
         const totalExpensesDisplay = document.getElementById('totalExpensesDisplay');
-        const calculateBtn = document.getElementById('calculateBtn');
+        // const calculateBtn = document.getElementById('calculateBtn'); // Removed for live calculation
         const saveUpdateBtn = document.getElementById('saveUpdateBtn');
         const cancelEditBtn = document.getElementById('cancelEditBtn');
         const loadBtn = document.getElementById('loadBtn');
         const propertiesTableBody = document.getElementById('propertiesTableBody');
         const messageBox = document.getElementById('messageBox');
+        const roiChartCanvas = document.getElementById('roiChart'); // Chart canvas element
 
         const confirmationModal = document.getElementById('confirmationModal');
         const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
@@ -307,6 +361,7 @@
             } else { // info
                 messageBox.classList.add('bg-blue-100', 'text-blue-700');
             }
+            // Use setTimeout to ensure the message is announced by screen readers if it appears rapidly
             setTimeout(() => {
                 messageBox.classList.add('hidden');
             }, 5000); // Hide after 5 seconds
@@ -385,12 +440,8 @@
 
         // --- ROI Calculation Function ---
         function calculateROI() {
-            if (!validateInputs()) {
-                roiDisplay.textContent = 'Invalid Input';
-                totalExpensesDisplay.textContent = 'Total Annual Expenses: $0.00';
-                return null;
-            }
-
+            // No need to validate inputs here as it's called on every input change.
+            // Validation will happen on save.
             const monthlyRentalIncome = parseFloat(rentalIncomeInput.value) || 0;
             const annualRentalIncome = monthlyRentalIncome * 12; // Convert to annual income
             const houseValue = parseFloat(houseValueInput.value) || 0;
@@ -404,11 +455,27 @@
             const totalExpenses = managementFee + repairCleaning + commission + insurance + others;
             totalExpensesDisplay.textContent = `Total Annual Expenses: $${totalExpenses.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-            const netOperatingIncome = annualRentalIncome - totalExpenses; // Use annual income here
-            const roi = (netOperatingIncome / houseValue) * 100;
+            let roi = 0;
+            if (houseValue > 0) { // Prevent division by zero
+                const netOperatingIncome = annualRentalIncome - totalExpenses; // Use annual income here
+                roi = (netOperatingIncome / houseValue) * 100;
+            }
             roiDisplay.textContent = `${roi.toFixed(2)}%`;
             return { roi: roi.toFixed(2), annualRentalIncome: annualRentalIncome, totalExpenses: totalExpenses, managementFee, repairCleaning, commission, insurance, others };
         }
+
+        // --- Debounce Utility Function ---
+        function debounce(func, delay) {
+            let timeout;
+            return function(...args) {
+                const context = this;
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(context, args), delay);
+            };
+        }
+
+        // Debounced version of calculateROI for live updates
+        const debouncedCalculateROI = debounce(calculateROI, 300);
 
         // --- Save or Update Property to Supabase ---
         async function saveOrUpdateProperty() {
@@ -417,16 +484,18 @@
                 return;
             }
 
+            // Perform validation before saving
+            if (!validateInputs()) {
+                showMessage('Please correct the input errors before saving.', 'error');
+                return;
+            }
+
             setLoading(saveUpdateBtn, true); // Show loading state
 
             const propertyName = propertyNameInput.value.trim();
             const recordDate = recordDateInput.value || new Date().toISOString().split('T')[0]; // Use input date or current date
-            const calculationResult = calculateROI(); 
-            if (calculationResult === null) { // If calculateROI returned null due to invalid input
-                setLoading(saveUpdateBtn, false); // Hide loading state
-                return;
-            }
-
+            const calculationResult = calculateROI(); // Re-calculate one last time to ensure latest values
+            
             const { roi, annualRentalIncome, totalExpenses, managementFee, repairCleaning, commission, insurance, others } = calculationResult;
 
             const propertyData = {
@@ -547,6 +616,7 @@
             }
 
             confirmationModal.classList.remove('hidden');
+            confirmationModal.focus(); // Focus the modal for accessibility
             confirmDeleteBtn.dataset.propertyId = id;
         }
 
@@ -554,6 +624,9 @@
         cancelDeleteBtn.addEventListener('click', () => {
             confirmationModal.classList.add('hidden');
             confirmDeleteBtn.dataset.propertyId = ''; // Clear stored ID
+            // Return focus to the element that triggered the modal (if applicable)
+            // For simplicity, we'll just focus the load button after modal closes
+            loadBtn.focus();
         });
 
         confirmDeleteBtn.addEventListener('click', async () => {
@@ -580,6 +653,7 @@
                 showMessage('An unexpected error occurred while deleting.', 'error');
             } finally {
                 confirmDeleteBtn.dataset.propertyId = '';
+                loadBtn.focus(); // Return focus after action
             }
         });
 
@@ -602,24 +676,25 @@
                     console.error('Error loading properties:', error.message);
                     if (error.message.includes('relation "public.properties" does not exist')) {
                         showMessage('Error: The "properties" table does not exist in your Supabase project. Please ensure you have created a table named "properties" (all lowercase) in the "public" schema of your Supabase database, and that RLS policies (if enabled) allow selects.', 'error');
-                        propertiesTableBody.innerHTML = `<tr><td colspan="7" class="px-6 py-4 whitespace-nowrap text-sm text-red-500 text-center">Table "properties" not found. Please create it in Supabase.</td></tr>`;
+                        propertiesTableBody.innerHTML = `<tr><td colspan="7" class="px-6 py-4 whitespace-nowrap text-sm text-red-500 text-center md:table-cell">Table "properties" not found. Please create it in Supabase.</td></tr>`;
                     } else if (error.message.includes('column "record_date" of relation "properties" does not exist')) {
                         showMessage('Error: The "record_date" column is missing in your Supabase "properties" table. Please add it (type: date or timestamp).', 'error');
-                        propertiesTableBody.innerHTML = `<tr><td colspan="7" class="px-6 py-4 whitespace-nowrap text-sm text-red-500 text-center">Missing "record_date" column in Supabase.</td></tr>`;
+                        propertiesTableBody.innerHTML = `<tr><td colspan="7" class="px-6 py-4 whitespace-nowrap text-sm text-red-500 text-center md:table-cell">Missing "record_date" column in Supabase.</td></tr>`;
                     }
                     else {
                         showMessage(`Error loading properties: ${error.message}`, 'error');
-                        propertiesTableBody.innerHTML = `<tr><td colspan="7" class="px-6 py-4 whitespace-nowrap text-sm text-red-500 text-center">Error loading properties.</td></tr>`;
+                        propertiesTableBody.innerHTML = `<tr><td colspan="7" class="px-6 py-4 whitespace-nowrap text-sm text-red-500 text-center md:table-cell">Error loading properties.</td></tr>`;
                     }
                 } else {
                     allProperties = data; // Store loaded properties
-                    sortProperties(currentSortColumn, currentSortDirection); // Apply initial sort
+                    sortProperties(currentSortColumn, currentSortDirection); // Apply initial sort, which also calls renderProperties
+                    // No need to call renderProperties here directly, as sortProperties does it.
                     showMessage('Properties loaded successfully!', 'info');
                 }
             } catch (err) {
                 console.error('Unexpected error during load:', err);
                 showMessage('An unexpected error occurred while loading properties.', 'error');
-                propertiesTableBody.innerHTML = `<tr><td colspan="7" class="px-6 py-4 whitespace-nowrap text-sm text-red-500 text-center">An unexpected error occurred.</td></tr>`;
+                propertiesTableBody.innerHTML = `<tr><td colspan="7" class="px-6 py-4 whitespace-nowrap text-sm text-red-500 text-center md:table-cell">An unexpected error occurred.</td></tr>`;
             } finally {
                 setLoading(loadBtn, false); // Hide loading state
             }
@@ -646,7 +721,8 @@
                 if (valA > valB) return direction === 'asc' ? 1 : -1;
                 return 0;
             });
-            renderProperties(allProperties);
+            renderProperties(allProperties); // Re-render table after sorting
+            renderChart(allProperties); // Re-render chart after sorting
             updateSortIndicators(column, direction);
         }
 
@@ -665,7 +741,8 @@
             propertiesTableBody.innerHTML = ''; // Clear existing rows
 
             if (properties.length === 0) {
-                propertiesTableBody.innerHTML = `<tr><td colspan="7" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">No properties saved yet.</td></tr>`;
+                // Enhanced empty state message
+                propertiesTableBody.innerHTML = `<tr><td colspan="7" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center md:table-cell">No properties saved yet. Go to the Calculator tab to add your first property!</td></tr>`;
                 return;
             }
 
@@ -674,16 +751,35 @@
                 const recordDateFormatted = property.record_date ? new Date(property.record_date).toLocaleDateString('en-GB') : 'N/A'; // Format date
 
                 const row = document.createElement('tr');
-                row.classList.add('hover:bg-gray-50'); // Add hover effect
+                // Apply responsive row class for mobile, and ensure it's a table row on medium screens and up
+                row.classList.add('hover:bg-gray-50', 'table-responsive-row', 'md:table-row'); 
                 row.innerHTML = `
                     <!-- Applied sticky-column-cell class here -->
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 sticky-column-cell">${property.property_name}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${recordDateFormatted}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">$${monthlyIncome.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">$${property.house_value.toLocaleString()}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">$${(property.total_expenses || 0).toLocaleString()}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-600 font-semibold">${(property.roi || 0).toFixed(2)}%</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium flex space-x-2">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 sticky-column-cell table-responsive-cell">
+                        <span class="table-responsive-label md:hidden">Property Name:</span>
+                        <span class="table-responsive-value">${property.property_name}</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 table-responsive-cell">
+                        <span class="table-responsive-label md:hidden">Record Date:</span>
+                        <span class="table-responsive-value">${recordDateFormatted}</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 table-responsive-cell">
+                        <span class="table-responsive-label md:hidden">Monthly Income:</span>
+                        <span class="table-responsive-value">$${monthlyIncome.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 table-responsive-cell">
+                        <span class="table-responsive-label md:hidden">Value:</span>
+                        <span class="table-responsive-value">$${property.house_value.toLocaleString()}</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 table-responsive-cell">
+                        <span class="table-responsive-label md:hidden">Total Expenses:</span>
+                        <span class="table-responsive-value">$${(property.total_expenses || 0).toLocaleString()}</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-600 font-semibold table-responsive-cell">
+                        <span class="table-responsive-label md:hidden">ROI (%):</span>
+                        <span class="table-responsive-value">${(property.roi || 0).toFixed(2)}%</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium flex space-x-2 table-responsive-cell table-responsive-actions">
                         <button class="edit-btn text-indigo-600 hover:text-indigo-900" data-id="${property.id}">Edit</button>
                         <button class="delete-btn text-red-600 hover:text-red-900" data-id="${property.id}">Delete</button>
                     </td>
@@ -706,6 +802,61 @@
             });
         }
 
+        // --- Chart Rendering Function ---
+        function renderChart(properties) {
+            const propertyNames = properties.map(p => p.property_name);
+            const rois = properties.map(p => p.roi);
+
+            if (myChart) {
+                myChart.destroy(); // Destroy existing chart instance if it exists
+            }
+
+            myChart = new Chart(roiChartCanvas, {
+                type: 'bar',
+                data: {
+                    labels: propertyNames,
+                    datasets: [{
+                        label: 'ROI (%)',
+                        data: rois,
+                        backgroundColor: 'rgba(59, 130, 246, 0.6)', // Tailwind blue-500 with opacity
+                        borderColor: 'rgba(59, 130, 246, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false, // Allow canvas to resize freely
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'ROI (%)'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Property Name'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false // Hide legend if only one dataset
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.dataset.label}: ${context.parsed.y.toFixed(2)}%`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
         // --- Tab Switching Logic ---
         function switchTab(selectedTabId) {
             tabContents.forEach(content => {
@@ -722,26 +873,28 @@
             const activeTabButton = document.querySelector(`[data-tab="${selectedTabId.replace('-tab', '')}"]`);
             activeTabButton.classList.add('active', 'bg-blue-600', 'text-white', 'shadow-md');
             activeTabButton.classList.remove('text-gray-600', 'hover:bg-gray-100');
+
+            // If switching to saved properties tab, ensure chart is rendered
+            if (selectedTabId === 'saved-properties-tab') {
+                renderChart(allProperties);
+            }
         }
 
         // --- Event Listeners ---
-        calculateBtn.addEventListener('click', calculateROI);
+        // calculateBtn.addEventListener('click', calculateROI); // Removed for live calculation
         saveUpdateBtn.addEventListener('click', saveOrUpdateProperty);
         cancelEditBtn.addEventListener('click', resetForm);
         loadBtn.addEventListener('click', loadProperties);
 
-        // Add event listeners for tab buttons
-        tabButtons.forEach(button => {
-            button.addEventListener('click', () => {
-                const tabId = button.dataset.tab + '-tab';
-                switchTab(tabId);
-            });
-        });
-
-        // Add input event listeners to clear errors on change
-        propertyNameInput.addEventListener('input', clearValidationErrors);
-        rentalIncomeInput.addEventListener('input', clearValidationErrors);
-        houseValueInput.addEventListener('input', clearValidationErrors);
+        // Add input event listeners to trigger debounced ROI calculation
+        propertyNameInput.addEventListener('input', debouncedCalculateROI);
+        rentalIncomeInput.addEventListener('input', debouncedCalculateROI);
+        houseValueInput.addEventListener('input', debouncedCalculateROI);
+        managementFeeInput.addEventListener('input', debouncedCalculateROI);
+        repairCleaningInput.addEventListener('input', debouncedCalculateROI);
+        commissionInput.addEventListener('input', debouncedCalculateROI);
+        insuranceInput.addEventListener('input', debouncedCalculateROI);
+        othersInput.addEventListener('input', debouncedCalculateROI);
 
         // Add event listeners for sortable table headers
         document.querySelectorAll('.sortable-header').forEach(header => {
